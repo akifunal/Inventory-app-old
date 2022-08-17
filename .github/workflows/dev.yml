@@ -1,0 +1,75 @@
+name: Dev Pipeline
+on:
+    push:
+        branches:
+            - 'feat/**'
+            - 'fix/**'
+            - 'docs/**'
+            - 'style/**'
+            - 'refactor/**'
+            - 'chore/**'
+            - 'revert/**'
+            - 'perf/**'
+            - 'ci/**'
+    pull_request:
+        types: [opened, reopened, synchronize]
+        branches:
+            - 'feat/**'
+            - 'fix/**'
+            - 'docs/**'
+            - 'style/**'
+            - 'refactor/**'
+            - 'chore/**'
+            - 'revert/**'
+            - 'perf/**'
+            - 'ci/**'
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        env:
+            DATABASE_URL: postgresql://testuser:dbpass@postgres:5432/testdb?schema=public
+            NODE_ENV: test
+            NEXTAUTH_SECRET: supersecret
+        container:
+            image: cypress/browsers:node16.14.0-chrome99-ff97
+            options: --user 1001
+        services:
+            postgres:
+                image: postgres:latest
+                env:
+                    POSTGRES_USER: testuser
+                    POSTGRES_PASSWORD: dbpass
+                    POSTGRES_DB: testdb
+                ports:
+                    - 5432:5432
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v3
+
+            - name: Install dependencies & build
+              uses: cypress-io/github-action@v4
+              with:
+                  runTests: false
+                  build: yarn build
+
+            - name: Format Check
+              run: yarn format
+
+            - name: Lint Check
+              run: yarn lint
+
+            - name: Type Check
+              run: yarn check-types
+
+            - name: Prepare Database
+              run: yarn db:prepare
+
+            - name: Run unit tests
+              run: yarn test:ci
+
+            - name: Run e2e tests
+              uses: cypress-io/github-action@v4
+              with:
+                  browser: chrome
+                  command: yarn e2e:ci
